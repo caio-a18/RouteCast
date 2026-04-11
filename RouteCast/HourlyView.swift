@@ -109,9 +109,10 @@ private struct HourlyScrollBox: View {
 struct HourlyView: View {
     @StateObject private var locationManager = LocationManager()
 
-    @State private var cityName      = "Loading..."
+    @State private var cityName       = "Loading..."
     @State private var currentWeather = WeatherDataProvider.fetchCurrent(lat: 0, lon: 0)
     @State private var hourlyForecast = WeatherDataProvider.fetchHourly(lat: 0, lon: 0)
+    @State private var hasLoaded      = false   // prevents re-firing on every GPS update
 
     var body: some View {
         ScrollView {
@@ -166,7 +167,7 @@ struct HourlyView: View {
         .background(RouteCastColors.pageBackground.ignoresSafeArea())
         .onAppear { loadWeather() }
         .onChange(of: locationManager.location) { _, newLocation in
-            guard newLocation != nil else { return }
+            guard newLocation != nil, !hasLoaded else { return }
             loadWeather()
         }
     }
@@ -174,11 +175,13 @@ struct HourlyView: View {
     // MARK: - Helpers
 
     private func loadWeather() {
-        guard let location = locationManager.location else { return }
+        guard let location = locationManager.location, !hasLoaded else { return }
+        hasLoaded = true
+
         let lat = location.coordinate.latitude
         let lon = location.coordinate.longitude
 
-        // Reverse-geocode the location for the city name
+        // Reverse-geocode once to get the city name
         CLGeocoder().reverseGeocodeLocation(location) { placemarks, _ in
             DispatchQueue.main.async {
                 cityName = placemarks?.first?.locality ?? "Unknown"
