@@ -4,18 +4,39 @@
 //
 //  Created by Caio Albuquerque on 3/5/26.
 //
-
 import SwiftUI
+import CoreLocation
 
 struct ContentView: View {
+    @StateObject var locationManager = LocationManager()
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            HourlyView()
+                .tabItem {
+                    Image(systemName: "clock")
+                    Text("Hourly")
+                }
+            
+            Group {
+                if let loc = locationManager.location {
+                    RadarView(latitude: loc.coordinate.latitude,
+                              longitude: loc.coordinate.longitude)
+                } else {
+                    Text("Getting location...")
+                }
+            }
+            .tabItem {
+                Image(systemName: "globe")
+                Text("Radar")
+            }
+            
+            RouteView()
+                .tabItem {
+                    Image(systemName: "map")
+                    Text("Route")
+                }
         }
-        .padding()
     }
 }
 
