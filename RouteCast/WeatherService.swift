@@ -73,7 +73,7 @@ struct HourlyWeather: Identifiable {
 
 enum WeatherDataProvider {
 
-    private static let apiKey = "YOUR_API_KEY"  // ← paste your OpenWeatherMap key here
+    private static let apiKey = APIKeys.openWeatherMap
 
     /// Returns current weather for the given coordinates.
     /// Replace the return value with a real URLSession call once you have an API key.
