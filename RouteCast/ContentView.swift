@@ -12,6 +12,7 @@ struct ContentView: View {
     
     var body: some View {
         TabView {
+
             HourlyView()
                 .tabItem {
                     Image(systemName: "clock")
@@ -37,6 +38,7 @@ struct ContentView: View {
                     Text("Route")
                 }
         }
+        .tint(RouteCastColors.goldenAmber)
     }
 }
 
