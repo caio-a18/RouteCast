@@ -9,7 +9,8 @@ import CoreLocation
 
 struct ContentView: View {
     @StateObject var locationManager = LocationManager()
-    
+    @StateObject var routeStore      = RouteStore()
+
     var body: some View {
         TabView {
 
@@ -39,6 +40,7 @@ struct ContentView: View {
                 }
         }
         .tint(RouteCastColors.goldenAmber)
+        .environmentObject(routeStore)
     }
 }
 
