@@ -8,6 +8,7 @@
 import Foundation
 import MapKit
 import CoreLocation
+import Observation
 
 // MARK: - City Forecast Model
 
@@ -52,12 +53,12 @@ struct CityForecast: Identifiable {
 //
 // ═══════════════════════════════════════════════════════════════════════
 
-@MainActor
-class RouteStore: ObservableObject {
-    @Published var cityForecasts : [CityForecast] = []
-    @Published var isLoading     : Bool           = false
-    @Published var routeLabel    : String         = ""
-    @Published var errorMessage  : String?        = nil
+@Observable
+class RouteStore {
+    var cityForecasts : [CityForecast] = []
+    var isLoading     : Bool           = false
+    var routeLabel    : String         = ""
+    var errorMessage  : String?        = nil
 
     // MARK: - Public API
 

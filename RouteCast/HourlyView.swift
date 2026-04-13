@@ -138,7 +138,7 @@ private struct CityForecastCard: View {
 // MARK: - HourlyView
 
 struct HourlyView: View {
-    @EnvironmentObject private var routeStore: RouteStore
+    @Environment(RouteStore.self) private var routeStore
     @StateObject private var locationManager = LocationManager()
 
     @State private var cityName       = "Loading..."
@@ -265,5 +265,5 @@ struct HourlyView: View {
 
 #Preview {
     HourlyView()
-        .environmentObject(RouteStore())
+        .environment(RouteStore())
 }
