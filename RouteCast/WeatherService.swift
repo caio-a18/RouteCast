@@ -3,23 +3,6 @@
 //  RouteCast
 //
 //  Created by Caio Albuquerque on 4/11/26.
-//
-//  Currently returns mock data.
-//
-//  HOW TO WIRE UP REAL DATA (OpenWeatherMap):
-//  ─────────────────────────────────────────
-//  1. Create a free account at https://openweathermap.org
-//  2. Go to API Keys and copy your default key (or generate a new one).
-//  3. Subscribe to "One Call API 3.0" (free tier: 1,000 calls/day).
-//  4. Paste your key in WeatherDataProvider.apiKey below.
-//  5. Uncomment the URLSession block in fetchCurrent() / fetchHourly().
-//
-//  Endpoint used:
-//    GET https://api.openweathermap.org/data/3.0/onecall
-//        ?lat={lat}&lon={lon}&units=imperial
-//        &exclude=minutely,daily,alerts
-//        &appid={API_KEY}
-//  ─────────────────────────────────────────
 
 import SwiftUI
 import Foundation
@@ -59,14 +42,14 @@ enum WeatherCondition {
 struct CurrentWeather {
     let description: String
     let condition: WeatherCondition
-    let temperature: String     // formatted string, e.g. "72°F"
+    let temperature: String 
 }
 
 struct HourlyWeather: Identifiable {
     let id = UUID()
-    let time: String            // display string, e.g. "7am"
+    let time: String         
     let condition: WeatherCondition
-    let temperature: Double     // Fahrenheit
+    let temperature: Double
 }
 
 // MARK: - Data Provider
@@ -75,20 +58,13 @@ enum WeatherDataProvider {
 
     private static let apiKey = APIKeys.openWeatherMap
 
-    /// Returns current weather for the given coordinates.
-    /// Replace the return value with a real URLSession call once you have an API key.
+    /// Returns current weather for the given coordinates
     static func fetchCurrent(lat: Double, lon: Double) -> CurrentWeather {
-        // ── Uncomment to use live data ────────────────────────────────────────
-        // let urlString = "https://api.openweathermap.org/data/3.0/onecall" +
-        //     "?lat=\(lat)&lon=\(lon)&units=imperial" +
-        //     "&exclude=minutely,daily,alerts&appid=\(apiKey)"
-        // ... URLSession.shared.dataTask / async/await decode here ...
-        // ─────────────────────────────────────────────────────────────────────
         return mockCurrent
     }
 
-    /// Returns hourly forecast for the given coordinates.
-    /// The One Call API response includes a `hourly` array (48 hours ahead).
+    /// Returns hourly forecast for the given coordinates
+    /// The One Call API response includes a hourly array
     static func fetchHourly(lat: Double, lon: Double) -> [HourlyWeather] {
         return mockHourly
     }

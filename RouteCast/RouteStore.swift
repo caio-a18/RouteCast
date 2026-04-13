@@ -23,7 +23,7 @@ struct CityForecast: Identifiable {
 // MARK: - RouteStore
 //
 // ═══════════════════════════════════════════════════════════════════════
-//  HOW TO USE THIS FROM ROUTEVIEW  (this is all you need to do)
+//  HOW TO USE THIS FROM ROUTEVIEW
 // ═══════════════════════════════════════════════════════════════════════
 //
 //  1. Grab the store from the environment:
@@ -39,15 +39,8 @@ struct CityForecast: Identifiable {
 //           }
 //       }
 //
-//  3. Optionally show a loading spinner while it works:
 //
-//       if routeStore.isLoading { ProgressView() }
-//
-//  4. Optionally show an error if something went wrong:
-//
-//       if let error = routeStore.errorMessage { Text(error) }
-//
-//  5. To clear the route and return to current-location view:
+//  3. To clear the route and return to current-location view:
 //
 //       Button("Clear") { routeStore.clearRoute() }
 //
@@ -60,7 +53,7 @@ class RouteStore {
     var routeLabel    : String         = ""
     var errorMessage  : String?        = nil
 
-    // MARK: - Public API
+    // Public API
 
     func loadRoute(from origin: String, to destination: String) async {
         isLoading    = true
@@ -94,7 +87,7 @@ class RouteStore {
         errorMessage  = nil
     }
 
-    // MARK: - Route Logic
+    // Route logic
 
     private struct Stop {
         let name       : String
@@ -161,7 +154,7 @@ class RouteStore {
         }
     }
 
-    /// Returns `count` evenly-spaced coordinates from a polyline (always includes start & end).
+    /// Returns count evenly spaced coordinates from a polyline (always includes start & end)
     private func samplePolyline(_ polyline: MKPolyline, count: Int) -> [CLLocationCoordinate2D] {
         let n      = polyline.pointCount
         let pts    = polyline.points()
@@ -172,7 +165,7 @@ class RouteStore {
         }
     }
 
-    // MARK: - Errors
+    // Errors
 
     enum RouteError: LocalizedError {
         case geocodeFailed
@@ -180,7 +173,7 @@ class RouteStore {
 
         var errorDescription: String? {
             switch self {
-            case .geocodeFailed : return "Couldn't find one of the locations. Try adding a state (e.g. \"Portland, OR\")."
+            case .geocodeFailed : return "Couldn't find one of the locations. Try adding a location."
             case .noRouteFound  : return "No driving route found between those locations."
             }
         }

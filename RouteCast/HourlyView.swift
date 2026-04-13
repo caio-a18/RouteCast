@@ -8,7 +8,7 @@
 import SwiftUI
 import CoreLocation
 
-// MARK: - Temperature Graph
+// Temperature Graph
 
 /// Draws a dot-and-line temperature trend graph aligned with hourly columns.
 private struct TempGraphView: View {
@@ -59,7 +59,7 @@ private struct TempGraphView: View {
     }
 }
 
-// MARK: - Hourly Scroll Box
+// Hourly Scroll Box
 
 /// Horizontally scrollable card: time labels, weather icons, temperature graph.
 struct HourlyScrollBox: View {
@@ -97,7 +97,7 @@ struct HourlyScrollBox: View {
     }
 }
 
-// MARK: - City Forecast Card (used in route view)
+// City Forecast Card (used in route view)
 
 /// Compact weather card for a single city along a route.
 private struct CityForecastCard: View {
@@ -135,7 +135,7 @@ private struct CityForecastCard: View {
     }
 }
 
-// MARK: - HourlyView
+// HourlyView
 
 struct HourlyView: View {
     @Environment(RouteStore.self) private var routeStore
@@ -166,7 +166,7 @@ struct HourlyView: View {
         }
     }
 
-    // MARK: - Current Location View
+    // Current Location View
 
     private var currentLocationView: some View {
         VStack(spacing: 28) {
@@ -209,7 +209,7 @@ struct HourlyView: View {
         }
     }
 
-    // MARK: - Route View
+    // Route View
 
     private var routeView: some View {
         VStack(spacing: 16) {
@@ -243,7 +243,7 @@ struct HourlyView: View {
         }
     }
 
-    // MARK: - Helpers
+    // Helpers
 
     private func loadWeather() {
         guard let location = locationManager.location, !hasLoaded else { return }
