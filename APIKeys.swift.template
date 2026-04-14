@@ -1,0 +1,13 @@
+//
+//  APIKeys.swift.template
+//  RouteCast
+//
+//  Setup: copy this file to APIKeys.swift and fill in your keys.
+//  APIKeys.swift is gitignored — never commit real keys.
+//
+
+struct APIKeys {
+    /// OpenWeatherMap One Call API 3.0 key.
+    /// Get a free key at https://openweathermap.org (1,000 calls/day free).
+    static let openWeatherMap = "YOUR_API_KEY"
+}
