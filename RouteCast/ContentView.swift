@@ -9,9 +9,11 @@ import CoreLocation
 
 struct ContentView: View {
     @StateObject var locationManager = LocationManager()
-    
+    @State var routeStore            = RouteStore()
+
     var body: some View {
         TabView {
+
             HourlyView()
                 .tabItem {
                     Image(systemName: "clock")
@@ -37,6 +39,8 @@ struct ContentView: View {
                     Text("Route")
                 }
         }
+        .tint(RouteCastColors.goldenAmber)
+        .environment(routeStore)
     }
 }
 
