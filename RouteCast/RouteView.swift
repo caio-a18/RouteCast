@@ -229,9 +229,8 @@ struct RouteView: View {
     }
 }
 
-
 private enum TransportMode: String, CaseIterable, Identifiable {
-    case driving 
+    case driving
     case walking
     case cycling
     case transit
@@ -241,9 +240,9 @@ private enum TransportMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .driving: return "Driving"
-        case.walking: return "Walking"
-        case.cycling: return "Cycling"
-        case.transit: return "Transit"
+        case .walking: return "Walking"
+        case .cycling: return "Cycling"
+        case .transit: return "Transit"
         }
     }
 }

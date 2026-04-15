@@ -79,6 +79,10 @@ struct HourlyScrollBox: View {
                             Image(systemName: item.condition.sfSymbol)
                                 .font(.system(size: 26))
                                 .foregroundStyle(item.condition.color)
+                            Text("\(Int(item.temperature))°F")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(RouteCastColors.steeringGray)
                         }
                         .frame(width: itemWidth)
                     }
@@ -97,29 +101,80 @@ struct HourlyScrollBox: View {
     }
 }
 
+// City Forecast Card (used in route view)
+
+/// Compact weather card for a single city along a route.
+private struct CityForecastCard: View {
+    let forecast: CityForecast
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // City name + icon
+            HStack {
+                Text(forecast.cityName)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(RouteCastColors.steeringGray)
+                Spacer()
+                Image(systemName: forecast.weather.condition.sfSymbol)
+                    .font(.system(size: 36))
+                    .foregroundStyle(forecast.weather.condition.color)
+            }
+
+            // Description
+            Text(forecast.weather.description)
+                .font(.subheadline)
+                .foregroundColor(RouteCastColors.steeringGray.opacity(0.8))
+
+            // Mini hourly scroll
+            HourlyScrollBox(hourlyData: forecast.hourly)
+        }
+        .padding()
+        .background(RouteCastColors.boxBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(RouteCastColors.goldenAmber.opacity(0.4), lineWidth: 1)
+        )
+    }
+}
+
 // HourlyView
 
 struct HourlyView: View {
-    @StateObject private var locationManager = LocationManager()
+    @Environment(RouteStore.self) private var routeStore
+    let locationManager: LocationManager
 
     @State private var cityName       = "Loading..."
-    @State private var currentWeather = WeatherDataProvider.fetchCurrent(lat: 0, lon: 0)
-    @State private var hourlyForecast = WeatherDataProvider.fetchHourly(lat: 0, lon: 0)
+    @State private var currentWeather = CurrentWeather(description: "Loading...", condition: .cloudy, temperature: "--")
+    @State private var hourlyForecast: [HourlyWeather] = []
     @State private var hasLoaded      = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                currentLocationView
+                if routeStore.cityForecasts.isEmpty {
+                    currentLocationView
+                } else {
+                    routeView
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
         .background(RouteCastColors.pageBackground.ignoresSafeArea())
         .onAppear { loadWeather() }
-        .onChange(of: locationManager.location) { newLocation in
+        .onChange(of: locationManager.location) { _, newLocation in
             guard newLocation != nil, !hasLoaded else { return }
             loadWeather()
+        }
+        .onChange(of: routeStore.cityForecasts.isEmpty) { wasEmpty, isNowEmpty in
+            // Fires when a city is selected from RouteView or the route is cleared.
+            // Reset so loadWeather() picks up the newly set location.
+            if !wasEmpty && isNowEmpty {
+                hasLoaded = false
+                loadWeather()
+            }
         }
     }
 
@@ -132,10 +187,16 @@ struct HourlyView: View {
                 .foregroundColor(RouteCastColors.steeringGray)
                 .padding(.top, 8)
 
-            Image(systemName: currentWeather.condition.sfSymbol)
-                .font(.system(size: 90))
-                .foregroundStyle(currentWeather.condition.color)
-                .shadow(color: RouteCastColors.goldenAmber.opacity(0.35), radius: 10, y: 4)
+            HStack(spacing: 16) {
+                Image(systemName: currentWeather.condition.sfSymbol)
+                    .font(.system(size: 90))
+                    .foregroundStyle(currentWeather.condition.color)
+                    .shadow(color: RouteCastColors.goldenAmber.opacity(0.35), radius: 10, y: 4)
+                Text(currentWeather.temperature)
+                    .font(.system(size: 48, weight: .bold))
+                    .foregroundColor(RouteCastColors.steeringGray)
+                    .shadow(color: RouteCastColors.goldenAmber.opacity(0.15), radius: 2, y: 1)
+            }
 
             VStack(spacing: 10) {
                 Text("Current Weather")
@@ -166,6 +227,54 @@ struct HourlyView: View {
         }
     }
 
+    // Route View
+
+    private var routeView: some View {
+        VStack(spacing: 16) {
+            // Route label + clear button
+            HStack {
+                Text(routeStore.routeLabel)
+                    .font(.headline)
+                    .foregroundColor(RouteCastColors.steeringGray)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer()
+                Button("Clear") {
+                    routeStore.clearRoute()
+                    hasLoaded = false
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(RouteCastColors.goldenAmber)
+            }
+            .padding(.top, 8)
+
+            if routeStore.isLoading {
+                ProgressView("Loading weather along route…")
+                    .padding(.top, 40)
+            } else if let error = routeStore.errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 40)
+            } else {
+                ForEach(routeStore.cityForecasts) { forecast in
+                    CityForecastCard(forecast: forecast)
+                        .onTapGesture {
+                            let newLocation = CLLocation(
+                                latitude: forecast.coordinate.latitude,
+                                longitude: forecast.coordinate.longitude
+                            )
+                            locationManager.setLocation(newLocation)
+                            cityName = forecast.cityName
+                            currentWeather = forecast.weather
+                            hourlyForecast = forecast.hourly
+                            routeStore.clearRoute()
+                        }
+                }
+            }
+        }
+    }
+
     // Helpers
 
     private func loadWeather() {
@@ -181,11 +290,19 @@ struct HourlyView: View {
             }
         }
 
-        currentWeather = WeatherDataProvider.fetchCurrent(lat: lat, lon: lon)
-        hourlyForecast = WeatherDataProvider.fetchHourly(lat: lat, lon: lon)
+        Task {
+            let current = await WeatherDataProvider.fetchCurrentAsync(lat: lat, lon: lon)
+            let hourly = await WeatherDataProvider.fetchHourlyAsync(lat: lat, lon: lon)
+
+            await MainActor.run {
+                currentWeather = current
+                hourlyForecast = hourly
+            }
+        }
     }
 }
 
 #Preview {
-    HourlyView()
+    HourlyView(locationManager: LocationManager())
+        .environment(RouteStore())
 }

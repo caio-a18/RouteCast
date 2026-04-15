@@ -63,15 +63,23 @@ class RouteStore {
 
         do {
             let stops = try await citiesAlongRoute(from: origin, to: destination)
-            cityForecasts = stops.map { stop in
-                CityForecast(
+            
+            var forecasts: [CityForecast] = []
+            for stop in stops {
+                let weather = await WeatherDataProvider.fetchCurrentAsync(lat: stop.coordinate.latitude,
+                                                                          lon: stop.coordinate.longitude)
+                let hourly = await WeatherDataProvider.fetchHourlyAsync(lat: stop.coordinate.latitude,
+                                                                        lon: stop.coordinate.longitude)
+                forecasts.append(CityForecast(
                     cityName   : stop.name,
                     coordinate : stop.coordinate,
-                    weather    : WeatherDataProvider.fetchCurrent(lat: stop.coordinate.latitude,
-                                                                  lon: stop.coordinate.longitude),
-                    hourly     : WeatherDataProvider.fetchHourly(lat: stop.coordinate.latitude,
-                                                                 lon: stop.coordinate.longitude)
-                )
+                    weather    : weather,
+                    hourly     : hourly
+                ))
+            }
+            
+            await MainActor.run {
+                self.cityForecasts = forecasts
             }
         } catch {
             errorMessage  = error.localizedDescription

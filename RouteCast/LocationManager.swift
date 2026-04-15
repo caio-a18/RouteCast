@@ -23,4 +23,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         location = locations.first
     }
+
+    /// Set location manually (used when selecting a city from route view)
+    func setLocation(_ newLocation: CLLocation) {
+        self.location = newLocation
+    }
 }
