@@ -6,6 +6,7 @@
 
 import SwiftUI
 import Foundation
+import CoreLocation
 
 // MARK: - Weather Condition
 
@@ -37,53 +38,103 @@ enum WeatherCondition {
     }
 }
 
-// MARK: - Data Models
+// MARK: - Weather Type
 
-struct CurrentWeather {
-    let description: String
-    let condition: WeatherCondition
-    let temperature: String 
+enum WeatherType {
+    case hourly, current, defaults
 }
 
-struct HourlyWeather: Identifiable {
-    let id = UUID()
-    let time: String         
-    let condition: WeatherCondition
-    let temperature: Double
+// MARK: - Weather Error
+
+enum WeatherError: Error {
+    case httpError(statusCode: Int)
+    case invalidResponse
 }
 
-// MARK: - Data Provider
+// MARK: - Models
 
-enum WeatherDataProvider {
+struct WeatherData: Codable {
+    let latitude: Double
+    let longitude: Double
+    let current: CurrentWeather?
+    let hourly: HourlyWeather?
+}
 
-    private static let apiKey = APIKeys.openWeatherMap
+struct CurrentWeather: Codable {
+    let time: String
+    let temperature2m: Double
+    let windSpeed10m: Double
+    let cloudCover: Double
+    let precipitationProbability: Double
+    let precipitation: Double
 
-    /// Returns current weather for the given coordinates
-    static func fetchCurrent(lat: Double, lon: Double) -> CurrentWeather {
-        return mockCurrent
+    enum CodingKeys: String, CodingKey {
+        case time
+        case temperature2m            = "temperature_2m"
+        case windSpeed10m             = "wind_speed_10m"
+        case cloudCover               = "cloud_cover"
+        case precipitationProbability = "precipitation_probability"
+        case precipitation
+    }
+}
+
+struct HourlyWeather: Codable {
+    let time: [String]
+    let temperature2m: [Double]
+    let windSpeed10m: [Double]
+    let cloudCover: [Int]
+    let precipitationProbability: [Int]
+    let precipitation: [Double]
+
+    enum CodingKeys: String, CodingKey {
+        case time
+        case temperature2m            = "temperature_2m"
+        case windSpeed10m             = "wind_speed_10m"
+        case cloudCover               = "cloud_cover"
+        case precipitationProbability = "precipitation_probability"
+        case precipitation
+    }
+}
+
+// MARK: - Provider
+
+struct WeatherProvider {
+
+    private static func getWeatherHorizon(type: WeatherType = .defaults) -> String {
+        let params = "temperature_2m,wind_speed_10m,cloud_cover,precipitation_probability,precipitation"
+
+        switch type {
+        case .current: return "current=\(params)&timezone=auto"
+        case .hourly:  return "hourly=\(params)&timezone=auto"
+        default:       return "current=\(params)&hourly=\(params)&timezone=auto"
+        }
     }
 
-    /// Returns hourly forecast for the given coordinates
-    /// The One Call API response includes a hourly array
-    static func fetchHourly(lat: Double, lon: Double) -> [HourlyWeather] {
-        return mockHourly
+    static func getWeather(location: CLLocationCoordinate2D, type: WeatherType = .defaults) async throws -> WeatherData? {
+        let urlSession = URLSession.shared
+
+        let horizon = getWeatherHorizon(type: type)
+
+        let urlString = "https://api.open-meteo.com/v1/forecast?latitude=\(location.latitude)&longitude=\(location.longitude)&\(horizon)"
+
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+
+        let urlRequest = URLRequest(url: url)
+
+        let (data, response) = try await urlSession.data(for: urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw WeatherError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw WeatherError.httpError(statusCode: httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(WeatherData.self, from: data)
     }
 
-    // MARK: Mock data
-
-    private static let mockCurrent = CurrentWeather(
-        description: "Clear skies with a light breeze. Great conditions for driving.",
-        condition: .sunny,
-        temperature: "72°F"
-    )
-
-    private static let mockHourly: [HourlyWeather] = [
-        HourlyWeather(time: "7am",  condition: .sunny,        temperature: 65),
-        HourlyWeather(time: "8am",  condition: .sunny,        temperature: 68),
-        HourlyWeather(time: "9am",  condition: .partlyCloudy, temperature: 70),
-        HourlyWeather(time: "10am", condition: .cloudy,       temperature: 72),
-        HourlyWeather(time: "11am", condition: .cloudy,       temperature: 71),
-        HourlyWeather(time: "12pm", condition: .partlyCloudy, temperature: 74),
-        HourlyWeather(time: "1pm",  condition: .sunny,        temperature: 76),
-    ]
 }
