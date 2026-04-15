@@ -79,6 +79,10 @@ struct HourlyScrollBox: View {
                             Image(systemName: item.condition.sfSymbol)
                                 .font(.system(size: 26))
                                 .foregroundStyle(item.condition.color)
+                            Text("\(Int(item.temperature))°F")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(RouteCastColors.steeringGray)
                         }
                         .frame(width: itemWidth)
                     }
@@ -164,6 +168,14 @@ struct HourlyView: View {
             guard newLocation != nil, !hasLoaded else { return }
             loadWeather()
         }
+        .onChange(of: routeStore.cityForecasts.isEmpty) { wasEmpty, isNowEmpty in
+            // Fires when a city is selected from RouteView or the route is cleared.
+            // Reset so loadWeather() picks up the newly set location.
+            if !wasEmpty && isNowEmpty {
+                hasLoaded = false
+                loadWeather()
+            }
+        }
     }
 
     // Current Location View
@@ -175,10 +187,17 @@ struct HourlyView: View {
                 .foregroundColor(RouteCastColors.steeringGray)
                 .padding(.top, 8)
 
-            Image(systemName: currentWeather.condition.sfSymbol)
-                .font(.system(size: 90))
-                .foregroundStyle(currentWeather.condition.color)
-                .shadow(color: RouteCastColors.goldenAmber.opacity(0.35), radius: 10, y: 4)
+
+            HStack(spacing: 16) {
+                Image(systemName: currentWeather.condition.sfSymbol)
+                    .font(.system(size: 90))
+                    .foregroundStyle(currentWeather.condition.color)
+                    .shadow(color: RouteCastColors.goldenAmber.opacity(0.35), radius: 10, y: 4)
+                Text(currentWeather.temperature)
+                    .font(.system(size: 48, weight: .bold))
+                    .foregroundColor(RouteCastColors.steeringGray)
+                    .shadow(color: RouteCastColors.goldenAmber.opacity(0.15), radius: 2, y: 1)
+            }
 
             VStack(spacing: 10) {
                 Text("Current Weather")
@@ -286,6 +305,6 @@ struct HourlyView: View {
 }
 
 #Preview {
-    HourlyView()
+    HourlyView(locationManager: LocationManager())
         .environment(RouteStore())
 }

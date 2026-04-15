@@ -112,34 +112,34 @@ enum WeatherDataProvider {
 
     /// Async version: fetch hourly forecast for the given coordinates
     static func fetchHourlyAsync(lat: Double, lon: Double) async -> [HourlyWeather] {
-        let urlString = "https://api.openweathermap.org/data/3.0/onecall?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial"
-        
+        let urlString = "https://api.openweathermap.org/data/2.5/forecast?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial"
+
         guard let url = URL(string: urlString) else { return mockHourly }
-        
+
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            let response = try JSONDecoder().decode(OneCallResponse.self, from: data)
-            
+            let response = try JSONDecoder().decode(ForecastResponse.self, from: data)
+
             var hourlyData: [HourlyWeather] = []
             let calendar = Calendar.current
-            let now = Date()
-            
-            for (index, hour) in response.hourly.prefix(24).enumerated() {
-                let timestamp = Date(timeIntervalSince1970: Double(hour.dt))
+
+            for item in response.list.prefix(12) {
+                let timestamp = Date(timeIntervalSince1970: Double(item.dt))
                 let components = calendar.dateComponents([.hour], from: timestamp)
-                let hour12 = (components.hour ?? 0) % 12
-                let ampm = (components.hour ?? 0) < 12 ? "am" : "pm"
+                let rawHour = components.hour ?? 0
+                let hour12 = rawHour % 12
+                let ampm = rawHour < 12 ? "am" : "pm"
                 let timeString = "\(hour12 == 0 ? 12 : hour12)\(ampm)"
-                
-                let condition = mapWeatherCondition(hour.weather.first?.main ?? "")
-                
+
+                let condition = mapWeatherCondition(item.weather.first?.main ?? "")
+
                 hourlyData.append(HourlyWeather(
                     time: timeString,
                     condition: condition,
-                    temperature: hour.temp
+                    temperature: item.main.temp
                 ))
             }
-            
+
             return hourlyData.isEmpty ? mockHourly : hourlyData
         } catch {
             return mockHourly
@@ -183,14 +183,18 @@ enum WeatherDataProvider {
         let description: String
     }
 
-    private struct OneCallResponse: Codable {
-        let hourly: [HourlyData]
+    private struct ForecastResponse: Codable {
+        let list: [ForecastItem]
     }
 
-    private struct HourlyData: Codable {
+    private struct ForecastItem: Codable {
         let dt: Int
-        let temp: Double
+        let main: ForecastMain
         let weather: [WeatherData]
+    }
+
+    private struct ForecastMain: Codable {
+        let temp: Double
     }
 
     // MARK: Mock data
