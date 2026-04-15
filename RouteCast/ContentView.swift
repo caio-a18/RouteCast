@@ -11,6 +11,7 @@ struct ContentView: View {
     @StateObject var locationManager = LocationManager()
     @State var routeStore            = RouteStore()
     @State private var selectedTab   = 0
+    
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -24,8 +25,23 @@ struct ContentView: View {
 
             Group {
                 if let loc = locationManager.location {
-                    RadarView(latitude: loc.coordinate.latitude,
-                              longitude: loc.coordinate.longitude)
+                    ZStack(alignment: .top) {
+                        
+                        RadarView(
+                            coordinates: RadarStore.shared.coordinates,
+                            title: routeStore.routeLabel
+                        )
+                        
+                        if !routeStore.routeLabel.isEmpty {
+                            Text(routeStore.routeLabel)
+                                .font(.headline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.thinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .padding(.top, 12)
+                        }
+                    }
                 } else {
                     Text("Getting location...")
                 }
@@ -49,6 +65,13 @@ struct ContentView: View {
             // Navigate to Hourly tab whenever a city is selected or the route is cleared.
             if !wasEmpty && isNowEmpty {
                 selectedTab = 0
+            }
+        }
+        .onChange(of: locationManager.location) { _, newLocation in
+            guard let loc = newLocation else { return }
+
+            if RadarStore.shared.coordinates.isEmpty {
+                RadarStore.shared.coordinates = [loc.coordinate]
             }
         }
     }

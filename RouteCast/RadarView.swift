@@ -4,72 +4,115 @@
 //
 //  Created by Sophia Kager on 4/10/26.
 //
+
 import SwiftUI
-import MapKit
-import Combine
-import Foundation
 import WebKit
+import MapKit
+
+final class Coordinator {
+    var lastCoords: [CLLocationCoordinate2D] = []
+}
 
 struct RadarView: UIViewRepresentable {
-    var latitude: Double
-    var longitude: Double
-    
+
+    let coordinates: [CLLocationCoordinate2D]
+    let title: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+
     func makeUIView(context: Context) -> WKWebView {
-        
-        // 1. Create configuration + script controller
+
         let config = WKWebViewConfiguration()
         let userContentController = WKUserContentController()
-        
-        // 2. JavaScript to remove the banner
+
         let js = """
         function cleanUI() {
-            const selectors = [
-                '.banner',
-                '.menu'
-            ];
+            const selectors = ['.banner', '.menu'];
 
             selectors.forEach(sel => {
                 document.querySelectorAll(sel).forEach(el => el.remove());
             });
         }
 
-        // Run immediately
         cleanUI();
 
-        // Keep removing (Vue re-renders these constantly)
         const observer = new MutationObserver(cleanUI);
         observer.observe(document.documentElement, {
             childList: true,
             subtree: true
         });
         """
-        
+
         let script = WKUserScript(
             source: js,
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         )
-        
+
         userContentController.addUserScript(script)
         config.userContentController = userContentController
-        
-        // 3. Create WKWebView with config
+
         let webView = WKWebView(frame: .zero, configuration: config)
-        
-        // 4. Load URL
-        let urlString = "https://radar.weather.gov/?settings=v1_eyJhZ2VuZGEiOnsiaWQiOiJ3ZWF0aGVyIiwiY2VudGVyIjpbLTgwLjcyNiw0MS45NDVdLCJsb2NhdGlvbiI6Wy0xMTMuNjQ5LDM5Ljc3Ml0sInpvb20iOjUuNTUxNTY3ODc3MDkyMDA4LCJsYXllciI6ImJyZWZfcWNkIn0sImFuaW1hdGluZyI6dHJ1ZSwiYmFzZSI6InN0YW5kYXJkIiwiYXJ0Y2MiOmZhbHNlLCJjb3VudHkiOmZhbHNlLCJjd2EiOmZhbHNlLCJyZmMiOmZhbHNlLCJzdGF0ZSI6ZmFsc2UsIm1lbnUiOnRydWUsInNob3J0RnVzZWRPbmx5IjpmYWxzZSwib3BhY2l0eSI6eyJhbGVydHMiOjAuOCwibG9jYWwiOjAuNiwibG9jYWxTdGF0aW9ucyI6MC44LCJuYXRpb25hbCI6MC42fX0%3D"
-        
-        if let url = URL(string: urlString) {
-            webView.load(URLRequest(url: url))
-        }
-        
+
+        context.coordinator.lastCoords = coordinates
+        loadRadar(into: webView)
+
         return webView
     }
     
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
-}
+    private func loadRadar(into webView: WKWebView) {
+        let url = makeRadarURL(coords: coordinates)
 
-#Preview {
+        let request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+            timeoutInterval: 30
+        )
 
-    RadarView(latitude: 41.510008, longitude: -81.604189)
+        webView.load(request)
+    }
+    
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+
+        if context.coordinator.lastCoords.map({ "\($0.latitude),\($0.longitude)" })
+            == coordinates.map({ "\($0.latitude),\($0.longitude)" }) {
+            return
+        }
+
+        context.coordinator.lastCoords = coordinates
+        loadRadar(into: webView)
+    }
+    
+    private func makeRadarURL(coords: [CLLocationCoordinate2D]) -> URL {
+        
+        let lat: Double
+        let lon: Double
+        let zoom: Double
+        
+        if coords.isEmpty {
+            lat = 41.50
+            lon = -81.69
+            zoom = 6
+        } else {
+            let avgLat = coords.map(\.latitude).reduce(0, +) / Double(coords.count)
+            let avgLon = coords.map(\.longitude).reduce(0, +) / Double(coords.count)
+            
+            lat = avgLat
+            lon = avgLon
+            zoom = coords.count > 3 ? 4.5 : 6
+        }
+        
+        let json: [String: Any] = ["agenda":["id":"weather","center":[lon,lat],"location":[lon,lat],"zoom":5.466763946339284,"layer":"bref_qcd"],"animating":false,"base":"standard","artcc":false,"county":false,"cwa":false,"rfc":false,"state":false,"menu":true,"shortFusedOnly":false,"opacity":["alerts":0.8,"local":0.6,"localStations":0.8,"national":0.6]]
+        
+        
+        let data = try! JSONSerialization.data(withJSONObject: json)
+        let encoded = data.base64EncodedString()
+        
+        let urlString = "https://radar.weather.gov/?settings=v1_\(encoded)"
+        return URL(string: urlString)!
+    }
 }
