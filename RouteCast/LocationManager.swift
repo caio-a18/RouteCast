@@ -28,4 +28,5 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func setLocation(_ newLocation: CLLocation) {
         self.location = newLocation
     }
+    
 }

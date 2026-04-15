@@ -48,6 +48,8 @@ struct CityForecast: Identifiable {
 
 @Observable
 class RouteStore {
+    private let radarStore = RadarStore.shared
+    
     var cityForecasts : [CityForecast] = []
     var isLoading     : Bool           = false
     var routeLabel    : String         = ""
@@ -80,10 +82,12 @@ class RouteStore {
             
             await MainActor.run {
                 self.cityForecasts = forecasts
+                self.radarStore.coordinates = [forecasts.first?.coordinate].compactMap { $0 }
             }
         } catch {
             errorMessage  = error.localizedDescription
             cityForecasts = []
+            self.radarStore.coordinates = []
         }
 
         isLoading = false
@@ -93,6 +97,8 @@ class RouteStore {
         cityForecasts = []
         routeLabel    = ""
         errorMessage  = nil
+        
+        radarStore.coordinates = []
     }
 
     // Route logic
