@@ -187,7 +187,6 @@ struct HourlyView: View {
                 .foregroundColor(RouteCastColors.steeringGray)
                 .padding(.top, 8)
 
-
             HStack(spacing: 16) {
                 Image(systemName: currentWeather.condition.sfSymbol)
                     .font(.system(size: 90))
@@ -240,12 +239,12 @@ struct HourlyView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer()
-                Button("Clear") { 
+                Button("Clear") {
                     routeStore.clearRoute()
                     hasLoaded = false
                 }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(RouteCastColors.goldenAmber)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(RouteCastColors.goldenAmber)
             }
             .padding(.top, 8)
 
@@ -261,7 +260,6 @@ struct HourlyView: View {
                 ForEach(routeStore.cityForecasts) { forecast in
                     CityForecastCard(forecast: forecast)
                         .onTapGesture {
-                            // When user taps a city, update location and clear route
                             let newLocation = CLLocation(
                                 latitude: forecast.coordinate.latitude,
                                 longitude: forecast.coordinate.longitude
@@ -295,7 +293,7 @@ struct HourlyView: View {
         Task {
             let current = await WeatherDataProvider.fetchCurrentAsync(lat: lat, lon: lon)
             let hourly = await WeatherDataProvider.fetchHourlyAsync(lat: lat, lon: lon)
-            
+
             await MainActor.run {
                 currentWeather = current
                 hourlyForecast = hourly

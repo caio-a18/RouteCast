@@ -36,7 +36,7 @@ struct ContentView: View {
             }
             .tag(1)
 
-            RouteView(locationManager: locationManager)
+            RouteView()
                 .tabItem {
                     Image(systemName: "map")
                     Text("Route")

@@ -56,7 +56,7 @@ struct HourlyWeather: Identifiable {
 
 enum WeatherDataProvider {
 
-    private static let apiKey = APIKeys.openWeatherMap
+    // private static let apiKey = APIKeys.openWeatherMap
 
     /// Returns current weather for the given coordinates (synchronous, blocking call)
     static func fetchCurrent(lat: Double, lon: Double) -> CurrentWeather {
