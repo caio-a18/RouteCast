@@ -14,7 +14,7 @@ struct ContentView: View {
     var body: some View {
         TabView {
 
-            HourlyView()
+            HourlyView(locationManager: locationManager)
                 .tabItem {
                     Image(systemName: "clock")
                     Text("Hourly")
@@ -33,7 +33,7 @@ struct ContentView: View {
                 Text("Radar")
             }
             
-            RouteView()
+            RouteView(locationManager: locationManager)
                 .tabItem {
                     Image(systemName: "map")
                     Text("Route")

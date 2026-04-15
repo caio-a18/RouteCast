@@ -139,11 +139,11 @@ private struct CityForecastCard: View {
 
 struct HourlyView: View {
     @Environment(RouteStore.self) private var routeStore
-    @StateObject private var locationManager = LocationManager()
+    let locationManager: LocationManager
 
     @State private var cityName       = "Loading..."
-    @State private var currentWeather = WeatherDataProvider.fetchCurrent(lat: 0, lon: 0)
-    @State private var hourlyForecast = WeatherDataProvider.fetchHourly(lat: 0, lon: 0)
+    @State private var currentWeather = CurrentWeather(description: "Loading...", condition: .cloudy, temperature: "--")
+    @State private var hourlyForecast: [HourlyWeather] = []
     @State private var hasLoaded      = false
 
     var body: some View {
@@ -221,7 +221,10 @@ struct HourlyView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer()
-                Button("Clear") { routeStore.clearRoute() }
+                Button("Clear") { 
+                    routeStore.clearRoute()
+                    hasLoaded = false
+                }
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(RouteCastColors.goldenAmber)
             }
@@ -238,6 +241,18 @@ struct HourlyView: View {
             } else {
                 ForEach(routeStore.cityForecasts) { forecast in
                     CityForecastCard(forecast: forecast)
+                        .onTapGesture {
+                            // When user taps a city, update location and clear route
+                            let newLocation = CLLocation(
+                                latitude: forecast.coordinate.latitude,
+                                longitude: forecast.coordinate.longitude
+                            )
+                            locationManager.setLocation(newLocation)
+                            cityName = forecast.cityName
+                            currentWeather = forecast.weather
+                            hourlyForecast = forecast.hourly
+                            routeStore.clearRoute()
+                        }
                 }
             }
         }
@@ -258,8 +273,15 @@ struct HourlyView: View {
             }
         }
 
-        currentWeather = WeatherDataProvider.fetchCurrent(lat: lat, lon: lon)
-        hourlyForecast = WeatherDataProvider.fetchHourly(lat: lat, lon: lon)
+        Task {
+            let current = await WeatherDataProvider.fetchCurrentAsync(lat: lat, lon: lon)
+            let hourly = await WeatherDataProvider.fetchHourlyAsync(lat: lat, lon: lon)
+            
+            await MainActor.run {
+                currentWeather = current
+                hourlyForecast = hourly
+            }
+        }
     }
 }
 

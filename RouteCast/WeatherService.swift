@@ -58,15 +58,139 @@ enum WeatherDataProvider {
 
     private static let apiKey = APIKeys.openWeatherMap
 
-    /// Returns current weather for the given coordinates
+    /// Returns current weather for the given coordinates (synchronous, blocking call)
     static func fetchCurrent(lat: Double, lon: Double) -> CurrentWeather {
-        return mockCurrent
+        var result = mockCurrent
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        Task {
+            result = await fetchCurrentAsync(lat: lat, lon: lon)
+            semaphore.signal()
+        }
+        
+        semaphore.wait()
+        return result
     }
 
-    /// Returns hourly forecast for the given coordinates
-    /// The One Call API response includes a hourly array
+    /// Returns hourly forecast for the given coordinates (synchronous, blocking call)
     static func fetchHourly(lat: Double, lon: Double) -> [HourlyWeather] {
-        return mockHourly
+        var result = mockHourly
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        Task {
+            result = await fetchHourlyAsync(lat: lat, lon: lon)
+            semaphore.signal()
+        }
+        
+        semaphore.wait()
+        return result
+    }
+
+    /// Async version: fetch current weather for the given coordinates
+    static func fetchCurrentAsync(lat: Double, lon: Double) async -> CurrentWeather {
+        let urlString = "https://api.openweathermap.org/data/2.5/weather?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial"
+        
+        guard let url = URL(string: urlString) else { return mockCurrent }
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let response = try JSONDecoder().decode(OpenWeatherResponse.self, from: data)
+            
+            let condition = mapWeatherCondition(response.weather.first?.main ?? "")
+            let description = response.weather.first?.description ?? "No description"
+            let temperature = "\(Int(response.main.temp))°F"
+            
+            return CurrentWeather(
+                description: description.capitalized,
+                condition: condition,
+                temperature: temperature
+            )
+        } catch {
+            return mockCurrent
+        }
+    }
+
+    /// Async version: fetch hourly forecast for the given coordinates
+    static func fetchHourlyAsync(lat: Double, lon: Double) async -> [HourlyWeather] {
+        let urlString = "https://api.openweathermap.org/data/3.0/onecall?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial"
+        
+        guard let url = URL(string: urlString) else { return mockHourly }
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let response = try JSONDecoder().decode(OneCallResponse.self, from: data)
+            
+            var hourlyData: [HourlyWeather] = []
+            let calendar = Calendar.current
+            let now = Date()
+            
+            for (index, hour) in response.hourly.prefix(24).enumerated() {
+                let timestamp = Date(timeIntervalSince1970: Double(hour.dt))
+                let components = calendar.dateComponents([.hour], from: timestamp)
+                let hour12 = (components.hour ?? 0) % 12
+                let ampm = (components.hour ?? 0) < 12 ? "am" : "pm"
+                let timeString = "\(hour12 == 0 ? 12 : hour12)\(ampm)"
+                
+                let condition = mapWeatherCondition(hour.weather.first?.main ?? "")
+                
+                hourlyData.append(HourlyWeather(
+                    time: timeString,
+                    condition: condition,
+                    temperature: hour.temp
+                ))
+            }
+            
+            return hourlyData.isEmpty ? mockHourly : hourlyData
+        } catch {
+            return mockHourly
+        }
+    }
+
+    /// Maps OpenWeatherMap condition strings to our WeatherCondition enum
+    private static func mapWeatherCondition(_ main: String) -> WeatherCondition {
+        let condition = main.lowercased()
+        switch condition {
+        case "clear":
+            return .sunny
+        case "clouds":
+            return .cloudy
+        case "partly cloudy", "partly_cloudy":
+            return .partlyCloudy
+        case "rain", "drizzle":
+            return .rainy
+        case "thunderstorm":
+            return .stormy
+        case "snow":
+            return .snowy
+        default:
+            return .cloudy
+        }
+    }
+
+    // MARK: - OpenWeatherMap API Models
+
+    private struct OpenWeatherResponse: Codable {
+        let main: MainData
+        let weather: [WeatherData]
+    }
+
+    private struct MainData: Codable {
+        let temp: Double
+    }
+
+    private struct WeatherData: Codable {
+        let main: String
+        let description: String
+    }
+
+    private struct OneCallResponse: Codable {
+        let hourly: [HourlyData]
+    }
+
+    private struct HourlyData: Codable {
+        let dt: Int
+        let temp: Double
+        let weather: [WeatherData]
     }
 
     // MARK: Mock data
