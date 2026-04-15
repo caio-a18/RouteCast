@@ -97,48 +97,9 @@ struct HourlyScrollBox: View {
     }
 }
 
-// City Forecast Card (used in route view)
-
-/// Compact weather card for a single city along a route.
-private struct CityForecastCard: View {
-    let forecast: CityForecast
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // City name + icon
-            HStack {
-                Text(forecast.cityName)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(RouteCastColors.steeringGray)
-                Spacer()
-                Image(systemName: forecast.weather.condition.sfSymbol)
-                    .font(.system(size: 36))
-                    .foregroundStyle(forecast.weather.condition.color)
-            }
-
-            // Description
-            Text(forecast.weather.description)
-                .font(.subheadline)
-                .foregroundColor(RouteCastColors.steeringGray.opacity(0.8))
-
-            // Mini hourly scroll
-            HourlyScrollBox(hourlyData: forecast.hourly)
-        }
-        .padding()
-        .background(RouteCastColors.boxBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(RouteCastColors.goldenAmber.opacity(0.4), lineWidth: 1)
-        )
-    }
-}
-
 // HourlyView
 
 struct HourlyView: View {
-    @Environment(RouteStore.self) private var routeStore
     @StateObject private var locationManager = LocationManager()
 
     @State private var cityName       = "Loading..."
@@ -149,18 +110,14 @@ struct HourlyView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                if routeStore.cityForecasts.isEmpty {
-                    currentLocationView
-                } else {
-                    routeView
-                }
+                currentLocationView
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
         .background(RouteCastColors.pageBackground.ignoresSafeArea())
         .onAppear { loadWeather() }
-        .onChange(of: locationManager.location) { _, newLocation in
+        .onChange(of: locationManager.location) { newLocation in
             guard newLocation != nil, !hasLoaded else { return }
             loadWeather()
         }
@@ -209,40 +166,6 @@ struct HourlyView: View {
         }
     }
 
-    // Route View
-
-    private var routeView: some View {
-        VStack(spacing: 16) {
-            // Route label + clear button
-            HStack {
-                Text(routeStore.routeLabel)
-                    .font(.headline)
-                    .foregroundColor(RouteCastColors.steeringGray)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Spacer()
-                Button("Clear") { routeStore.clearRoute() }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(RouteCastColors.goldenAmber)
-            }
-            .padding(.top, 8)
-
-            if routeStore.isLoading {
-                ProgressView("Loading weather along route…")
-                    .padding(.top, 40)
-            } else if let error = routeStore.errorMessage {
-                Text(error)
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 40)
-            } else {
-                ForEach(routeStore.cityForecasts) { forecast in
-                    CityForecastCard(forecast: forecast)
-                }
-            }
-        }
-    }
-
     // Helpers
 
     private func loadWeather() {
@@ -265,5 +188,4 @@ struct HourlyView: View {
 
 #Preview {
     HourlyView()
-        .environment(RouteStore())
 }
