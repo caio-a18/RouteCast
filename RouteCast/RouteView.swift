@@ -229,7 +229,7 @@ struct RouteView: View {
     }
 }
 
-private enum TransportMode: String, CaseIterable, Identifiable {
+enum TransportMode: String, CaseIterable, Identifiable {
     case driving
     case walking
     case cycling
