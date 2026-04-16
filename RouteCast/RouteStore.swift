@@ -22,30 +22,6 @@ struct CityForecast: Identifiable {
 }
 
 // MARK: - RouteStore
-//
-// ═══════════════════════════════════════════════════════════════════════
-//  HOW TO USE THIS FROM ROUTEVIEW
-// ═══════════════════════════════════════════════════════════════════════
-//
-//  1. Grab the store from the environment:
-//
-//       @EnvironmentObject var routeStore: RouteStore
-//
-//  2. When the user submits a route, call loadRoute():
-//
-//       Button("Get Weather Along Route") {
-//           Task {
-//               await routeStore.loadRoute(from: "Los Angeles, CA",
-//                                           to: "Seattle, WA")
-//           }
-//       }
-//
-//
-//  3. To clear the route and return to current-location view:
-//
-//       Button("Clear") { routeStore.clearRoute() }
-//
-// ═══════════════════════════════════════════════════════════════════════
 
 @Observable
 class RouteStore {
