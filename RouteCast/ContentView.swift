@@ -10,12 +10,15 @@ struct ContentView: View {
     @StateObject var locationManager = LocationManager()
     @State var routeStore            = RouteStore()
     @State private var selectedTab   = 0
+    @AppStorage("hasSeenSplash") private var hasSeenSplash = false
+    @State private var showSplash = true
 
     init() {
         UITabBar.appearance().isHidden = true
     }
 
     var body: some View {
+        
         ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
                 HourlyView(locationManager: locationManager)
@@ -37,6 +40,66 @@ struct ContentView: View {
             }
 
             floatingTabBar
+        }
+        if showSplash && !hasSeenSplash {
+            SplashOverlay {
+                hasSeenSplash = true
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    showSplash = false
+                }
+            }
+            .transition(.opacity)
+            .zIndex(1)
+        }
+    }
+   
+    struct SplashOverlay: View {
+        var onContinue: () -> Void
+
+        var body: some View {
+            VStack {
+                
+                Spacer()
+
+                VStack(spacing: 18) {
+                    Image("Icon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 130, height: 130)
+                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                        .shadow(radius: 10)
+
+                    Text("Welcome to RouteCast")
+                        .font(.system(size: 34, weight: .bold))
+                        .multilineTextAlignment(.center)
+
+                    Text("Real-time radar and weather along your route.")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                .padding(.horizontal, 24)
+
+                Spacer()
+
+                Button {
+                    onContinue()
+                } label: {
+                    Text("Get Started")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(RouteCastColors.goldenAmber)
+                        .foregroundColor(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 30) // safe bottom breathing room
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemBackground))
+            .ignoresSafeArea()
         }
     }
 
