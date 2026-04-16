@@ -354,6 +354,7 @@ struct RouteView: View {
                     .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
 
                 Button {
+                    updateMapPosition()
                     isMapFullScreen = true
                 } label: {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
@@ -427,6 +428,7 @@ struct RouteView: View {
 
             Button {
                 isMapFullScreen = false
+                updateMapPosition()
             } label: {
                 Image(systemName: "arrow.down.right.and.arrow.up.left")
                     .font(.headline.weight(.semibold))
@@ -442,6 +444,10 @@ struct RouteView: View {
             }
             .padding(.top, 16)
             .padding(.trailing, 16)
+        }
+        .onAppear {
+            // Re-fit every time fullscreen opens so prior manual zoom does not persist.
+            updateMapPosition()
         }
     }
 
