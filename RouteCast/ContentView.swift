@@ -33,13 +33,21 @@ struct ContentView: View {
                         )
                         
                         if !routeStore.routeLabel.isEmpty {
-                            Text(routeStore.routeLabel)
-                                .font(.headline)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(.thinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .padding(.top, 12)
+                            HStack(spacing: 6) {
+                                Image(systemName: "mappin.and.ellipse")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(RouteCastColors.goldenAmber)
+                                Text(routeStore.routeLabel)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(RouteCastColors.steeringGray)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
+                            .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
+                            .padding(.top, 12)
                         }
                     }
                 } else {
