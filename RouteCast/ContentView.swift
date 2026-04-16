@@ -28,7 +28,7 @@ struct ContentView: View {
                     .tag(2)
             }
             .environment(routeStore)
-            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 88) }
+            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 64) }
             .onChange(of: locationManager.location) { _, newLocation in
                 guard let loc = newLocation else { return }
                 if RadarStore.shared.coordinates.isEmpty {
@@ -94,7 +94,7 @@ struct ContentView: View {
         .clipShape(Capsule())
         .shadow(color: .black.opacity(0.14), radius: 20, x: 0, y: 6)
         .padding(.horizontal, 36)
-        .padding(.bottom, 24)
+        .padding(.bottom, 4)
     }
 
     private func tabButton(icon: String, selectedIcon: String, title: String, tag: Int) -> some View {
