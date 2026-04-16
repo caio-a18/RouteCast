@@ -125,6 +125,7 @@ struct HourlyScrollBox: View {
 
 private struct CityForecastCard: View {
     let forecast: CityForecast
+    let isOrigin: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -133,7 +134,7 @@ private struct CityForecastCard: View {
                     Text(forecast.cityName)
                         .font(.title3.weight(.bold))
                         .foregroundStyle(RouteCastColors.steeringGray)
-                    Text("Est. arrival \(forecast.arrivalTime.formatted(date: .omitted, time: .shortened))")
+                    Text("\(isOrigin ? "Departure" : "Est. arrival") \(forecast.arrivalTime.formatted(date: .omitted, time: .shortened))")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 9)
@@ -156,14 +157,25 @@ private struct CityForecastCard: View {
                 .font(.subheadline)
                 .foregroundStyle(RouteCastColors.steeringGray.opacity(0.65))
 
-            HourlyScrollBox(hourlyData: forecast.hourly)
-
-            HStack {
-                Spacer()
-                Label("Tap for details", systemImage: "chevron.right")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(RouteCastColors.goldenAmber)
+            HStack(spacing: 0) {
+                ForEach(Array(forecast.hourly.prefix(5))) { item in
+                    VStack(spacing: 6) {
+                        Text(item.time)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(RouteCastColors.steeringGray.opacity(0.55))
+                        Image(systemName: item.condition.sfSymbol)
+                            .font(.system(size: 22))
+                            .foregroundStyle(item.condition.color)
+                        Text("\(Int(item.temperature))°")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(RouteCastColors.steeringGray)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(16)
         .background(RouteCastColors.boxBackground)
@@ -197,7 +209,7 @@ struct HourlyView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
-            .padding(.bottom, 28)
+            .padding(.bottom, 110)
         }
         .background(RouteCastColors.pageBackground.ignoresSafeArea())
         .onAppear { loadWeather() }
@@ -218,6 +230,7 @@ struct HourlyView: View {
             sectionHeader("Hourly Forecast")
             HourlyScrollBox(hourlyData: hourlyForecast)
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 
     // MARK: - Selected City View
@@ -226,7 +239,9 @@ struct HourlyView: View {
         VStack(spacing: 20) {
             HStack {
                 Button {
-                    selectedCity = nil
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        selectedCity = nil
+                    }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
@@ -242,11 +257,15 @@ struct HourlyView: View {
             heroCard(
                 cityName: city.cityName,
                 weather: city.weather,
-                subtitle: "Est. arrival \(city.arrivalTime.formatted(date: .omitted, time: .shortened))"
+                subtitle: "\(city.id == routeStore.cityForecasts.first?.id ? "Departure" : "Est. arrival") \(city.arrivalTime.formatted(date: .omitted, time: .shortened))"
             )
             sectionHeader("Hourly Forecast")
             HourlyScrollBox(hourlyData: city.hourly)
         }
+        .transition(.asymmetric(
+            insertion: .move(edge: .trailing).combined(with: .opacity),
+            removal: .move(edge: .trailing).combined(with: .opacity)
+        ))
     }
 
     // MARK: - Route View
@@ -263,17 +282,27 @@ struct HourlyView: View {
                     .multilineTextAlignment(.center)
                     .padding(.top, 40)
             } else {
-                ForEach(routeStore.cityForecasts) { forecast in
-                    CityForecastCard(forecast: forecast)
+                ForEach(Array(routeStore.cityForecasts.enumerated()), id: \.element.id) { index, forecast in
+                    CityForecastCard(forecast: forecast, isOrigin: index == 0)
                         .onTapGesture {
-                            selectedCity = forecast
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                selectedCity = forecast
+                            }
                         }
                 }
             }
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 
     // MARK: - Shared Components
+
+    private func pageTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.largeTitle.weight(.bold))
+            .foregroundStyle(RouteCastColors.steeringGray)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
     private func heroCard(cityName: String, weather: CurrentWeather, subtitle: String?) -> some View {
         VStack(spacing: 0) {
