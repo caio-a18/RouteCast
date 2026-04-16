@@ -8,6 +8,72 @@ import SwiftUI
 import Foundation
 import MapKit
 
+// MARK: - Skeleton Card
+
+private struct SkeletonCityCard: View {
+    @State private var opacity: Double = 0.45
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(RouteCastColors.steeringGray.opacity(0.15))
+                        .frame(width: 130, height: 20)
+                    Capsule()
+                        .fill(RouteCastColors.goldenAmber.opacity(0.25))
+                        .frame(width: 110, height: 22)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 6) {
+                    Circle()
+                        .fill(RouteCastColors.steeringGray.opacity(0.12))
+                        .frame(width: 32, height: 32)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(RouteCastColors.steeringGray.opacity(0.15))
+                        .frame(width: 48, height: 22)
+                }
+            }
+
+            RoundedRectangle(cornerRadius: 4)
+                .fill(RouteCastColors.steeringGray.opacity(0.1))
+                .frame(height: 14)
+
+            HStack(spacing: 0) {
+                ForEach(0..<5, id: \.self) { _ in
+                    VStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(RouteCastColors.steeringGray.opacity(0.12))
+                            .frame(width: 28, height: 10)
+                        Circle()
+                            .fill(RouteCastColors.steeringGray.opacity(0.12))
+                            .frame(width: 22, height: 22)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(RouteCastColors.steeringGray.opacity(0.12))
+                            .frame(width: 22, height: 10)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(16)
+        .background(RouteCastColors.boxBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
+        .opacity(opacity)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true)) {
+                opacity = 1.0
+            }
+        }
+    }
+}
+
+// MARK: - RouteView
+
 struct RouteView: View {
     @Environment(RouteStore.self) private var routeStore
 
@@ -30,19 +96,7 @@ struct RouteView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 12)
 
-            if routeStore.isLoading {
-                Spacer()
-                VStack(spacing: 12) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Finding weather along route…")
-                        .font(.subheadline)
-                        .foregroundStyle(RouteCastColors.steeringGray.opacity(0.55))
-                }
-                Spacer()
-            } else {
-                resultSection
-            }
+            resultSection
         }
         .background(RouteCastColors.pageBackground.ignoresSafeArea())
     }
@@ -51,13 +105,9 @@ struct RouteView: View {
 
     private var formSection: some View {
         VStack(spacing: 14) {
-            // Origin field
             fieldInput(label: "FROM", placeholder: "City or address", text: $pointA)
+            fieldInput(label: "TO",   placeholder: "City or address", text: $pointB)
 
-            // Destination field
-            fieldInput(label: "TO", placeholder: "City or address", text: $pointB)
-
-            // Departure + mode row
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("DEPARTURE")
@@ -92,7 +142,6 @@ struct RouteView: View {
                 .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
             }
 
-            // Action row: search + clear
             HStack(spacing: 10) {
                 Button {
                     Task {
@@ -170,26 +219,39 @@ struct RouteView: View {
                         .padding(.top, 6)
                 }
 
-                if routeStore.cityForecasts.isEmpty, routeStore.errorMessage == nil {
+                if routeStore.isLoading {
+                    skeletonSection
+                } else if routeStore.cityForecasts.isEmpty, routeStore.errorMessage == nil {
                     emptyState
                 } else {
                     if !routeStore.cityForecasts.isEmpty {
                         routeMapCard
                             .padding(.horizontal, 20)
                     }
-
                     ForEach(Array(routeStore.cityForecasts.enumerated()), id: \.element.id) { index, city in
                         cityCard(city, index: index)
                             .padding(.horizontal, 20)
                     }
                 }
             }
-            .padding(.bottom, 28)
+            .padding(.bottom, 110)
         }
         .onAppear { updateMapPosition() }
         .onChange(of: routeStore.cityForecasts.map(\.id)) { _ in
             updateMapPosition()
         }
+    }
+
+    // MARK: - Skeleton
+
+    private var skeletonSection: some View {
+        VStack(spacing: 16) {
+            ForEach(0..<3, id: \.self) { _ in
+                SkeletonCityCard()
+                    .padding(.horizontal, 20)
+            }
+        }
+        .padding(.top, 8)
     }
 
     // MARK: - Empty State
@@ -240,7 +302,26 @@ struct RouteView: View {
                 .font(.subheadline)
                 .foregroundStyle(RouteCastColors.steeringGray.opacity(0.65))
 
-            HourlyScrollBox(hourlyData: city.hourly)
+            // Fixed 5-column hourly row — no nested scroll
+            HStack(spacing: 0) {
+                ForEach(Array(city.hourly.prefix(5))) { item in
+                    VStack(spacing: 6) {
+                        Text(item.time)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(RouteCastColors.steeringGray.opacity(0.55))
+                        Image(systemName: item.condition.sfSymbol)
+                            .font(.system(size: 22))
+                            .foregroundStyle(item.condition.color)
+                        Text("\(Int(item.temperature))°")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(RouteCastColors.steeringGray)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(16)
         .background(RouteCastColors.boxBackground)
@@ -285,13 +366,19 @@ struct RouteView: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                            .background(.thinMaterial)
+                            .background(Color.white)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(RouteCastColors.goldenAmber, lineWidth: 1.5)
+                            )
                             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
 
                             Image(systemName: isEndpoint ? "mappin.circle.fill" : "circle.fill")
                                 .font(isEndpoint ? .title3 : .caption)
-                                .foregroundStyle(isEndpoint ? RouteCastColors.goldenAmber : RouteCastColors.steeringGray.opacity(0.5))
+                                .foregroundStyle(isEndpoint
+                                                 ? RouteCastColors.goldenAmber
+                                                 : RouteCastColors.steeringGray.opacity(0.4))
                         }
                     }
                 }
