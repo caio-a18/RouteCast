@@ -110,6 +110,54 @@ enum WeatherDataProvider {
         }
     }
 
+    /// Async version: fetch weather at a specific target date (uses forecast endpoint, picks closest slot)
+    static func fetchCurrentAt(lat: Double, lon: Double, targetDate: Date) async -> CurrentWeather {
+        let urlString = "https://api.openweathermap.org/data/2.5/forecast?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial"
+        guard let url = URL(string: urlString) else { return mockCurrent }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let response  = try JSONDecoder().decode(ForecastResponse.self, from: data)
+            let target    = targetDate.timeIntervalSince1970
+            guard let item = response.list.min(by: {
+                abs(Double($0.dt) - target) < abs(Double($1.dt) - target)
+            }) else { return mockCurrent }
+            let condition   = mapWeatherCondition(item.weather.first?.main ?? "")
+            let description = item.weather.first?.description ?? "No description"
+            return CurrentWeather(description: description.capitalized,
+                                  condition: condition,
+                                  temperature: "\(Int(item.main.temp))°F")
+        } catch {
+            return mockCurrent
+        }
+    }
+
+    /// Async version: fetch hourly forecast starting from a target date (next 5 slots at or after targetDate)
+    static func fetchHourlyFrom(lat: Double, lon: Double, targetDate: Date) async -> [HourlyWeather] {
+        let urlString = "https://api.openweathermap.org/data/2.5/forecast?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial"
+        guard let url = URL(string: urlString) else { return mockHourly }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let response  = try JSONDecoder().decode(ForecastResponse.self, from: data)
+            let target    = targetDate.timeIntervalSince1970
+            var items     = response.list.filter { Double($0.dt) >= target }
+            if items.isEmpty { items = Array(response.list.suffix(5)) }
+            let calendar  = Calendar.current
+            let hourlyData: [HourlyWeather] = items.prefix(5).map { item in
+                let timestamp  = Date(timeIntervalSince1970: Double(item.dt))
+                let rawHour    = calendar.dateComponents([.hour], from: timestamp).hour ?? 0
+                let hour12     = rawHour % 12
+                let ampm       = rawHour < 12 ? "am" : "pm"
+                let timeString = "\(hour12 == 0 ? 12 : hour12)\(ampm)"
+                return HourlyWeather(time: timeString,
+                                     condition: mapWeatherCondition(item.weather.first?.main ?? ""),
+                                     temperature: item.main.temp)
+            }
+            return hourlyData.isEmpty ? mockHourly : hourlyData
+        } catch {
+            return mockHourly
+        }
+    }
+
     /// Async version: fetch hourly forecast for the given coordinates
     static func fetchHourlyAsync(lat: Double, lon: Double) async -> [HourlyWeather] {
         let urlString = "https://api.openweathermap.org/data/2.5/forecast?lat=\(lat)&lon=\(lon)&appid=\(apiKey)&units=imperial"
