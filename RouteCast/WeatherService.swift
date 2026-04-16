@@ -141,13 +141,16 @@ enum WeatherDataProvider {
             let target    = targetDate.timeIntervalSince1970
             var items     = response.list.filter { Double($0.dt) >= target }
             if items.isEmpty { items = Array(response.list.suffix(5)) }
-            let calendar  = Calendar.current
+            let calendar = Calendar.current
+            let baseDay  = calendar.startOfDay(for: targetDate)
             let hourlyData: [HourlyWeather] = items.prefix(5).map { item in
-                let timestamp  = Date(timeIntervalSince1970: Double(item.dt))
-                let rawHour    = calendar.dateComponents([.hour], from: timestamp).hour ?? 0
-                let hour12     = rawHour % 12
-                let ampm       = rawHour < 12 ? "am" : "pm"
-                let timeString = "\(hour12 == 0 ? 12 : hour12)\(ampm)"
+                let timestamp = Date(timeIntervalSince1970: Double(item.dt))
+                let rawHour   = calendar.dateComponents([.hour], from: timestamp).hour ?? 0
+                let hour12    = rawHour % 12
+                let ampm      = rawHour < 12 ? "am" : "pm"
+                var timeString = "\(hour12 == 0 ? 12 : hour12)\(ampm)"
+                let dayDiff   = calendar.dateComponents([.day], from: baseDay, to: calendar.startOfDay(for: timestamp)).day ?? 0
+                if dayDiff > 0 { timeString += " +\(dayDiff)d" }
                 return HourlyWeather(time: timeString,
                                      condition: mapWeatherCondition(item.weather.first?.main ?? ""),
                                      temperature: item.main.temp)
