@@ -82,6 +82,7 @@ struct RouteView: View {
     @State private var departure = Date()
     @State private var selectedMode: TransportMode = .driving
     @State private var mapPosition: MapCameraPosition = .automatic
+    @State private var isMapFullScreen = false
 
     private var canSearch: Bool {
         !pointA.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
@@ -99,6 +100,9 @@ struct RouteView: View {
             resultSection
         }
         .background(RouteCastColors.pageBackground.ignoresSafeArea())
+        .fullScreenCover(isPresented: $isMapFullScreen) {
+            fullScreenMapView
+        }
     }
 
     // MARK: - Form
@@ -343,54 +347,102 @@ struct RouteView: View {
                     .foregroundStyle(RouteCastColors.steeringGray.opacity(0.1))
             }
 
-            Map(position: $mapPosition) {
-                let forecasts = routeStore.cityForecasts
-                let coordinates = forecasts.map(\.coordinate)
+            ZStack(alignment: .topTrailing) {
+                routeMap
+                    .frame(height: 360)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
 
-                if coordinates.count > 1 {
-                    MapPolyline(coordinates: coordinates)
-                        .stroke(RouteCastColors.goldenAmber, lineWidth: 3.5)
+                Button {
+                    isMapFullScreen = true
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(RouteCastColors.steeringGray)
+                        .padding(10)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .strokeBorder(Color.white.opacity(0.8), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 2)
                 }
-
-                ForEach(Array(forecasts.enumerated()), id: \.element.id) { index, city in
-                    let isEndpoint = index == 0 || index == forecasts.count - 1
-                    Annotation(city.cityName, coordinate: city.coordinate) {
-                        VStack(spacing: 3) {
-                            HStack(spacing: 4) {
-                                Image(systemName: city.weather.condition.sfSymbol)
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(city.weather.condition.color)
-                                Text(city.weather.temperature)
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(RouteCastColors.steeringGray)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(RouteCastColors.goldenAmber, lineWidth: 1.5)
-                            )
-                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-
-                            Image(systemName: isEndpoint ? "mappin.circle.fill" : "circle.fill")
-                                .font(isEndpoint ? .title3 : .caption)
-                                .foregroundStyle(isEndpoint
-                                                 ? RouteCastColors.goldenAmber
-                                                 : RouteCastColors.steeringGray.opacity(0.4))
-                        }
-                    }
-                }
+                .padding(12)
             }
-            .frame(height: 360)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
         }
         .padding(16)
         .background(RouteCastColors.boxBackground)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 4)
+    }
+
+    private var routeMap: some View {
+        Map(position: $mapPosition) {
+            let forecasts = routeStore.cityForecasts
+            let coordinates = forecasts.map(\.coordinate)
+
+            if coordinates.count > 1 {
+                MapPolyline(coordinates: coordinates)
+                    .stroke(RouteCastColors.goldenAmber, lineWidth: 3.5)
+            }
+
+            ForEach(Array(forecasts.enumerated()), id: \.element.id) { index, city in
+                let isEndpoint = index == 0 || index == forecasts.count - 1
+                Annotation(city.cityName, coordinate: city.coordinate) {
+                    VStack(spacing: 3) {
+                        HStack(spacing: 4) {
+                            Image(systemName: city.weather.condition.sfSymbol)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(city.weather.condition.color)
+                            Text(city.weather.temperature)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(RouteCastColors.steeringGray)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(RouteCastColors.goldenAmber, lineWidth: 1.5)
+                        )
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+
+                        Image(systemName: isEndpoint ? "mappin.circle.fill" : "circle.fill")
+                            .font(isEndpoint ? .title3 : .caption)
+                            .foregroundStyle(isEndpoint
+                                             ? RouteCastColors.goldenAmber
+                                             : RouteCastColors.steeringGray.opacity(0.4))
+                    }
+                }
+            }
+        }
+    }
+
+    private var fullScreenMapView: some View {
+        ZStack(alignment: .topTrailing) {
+            routeMap
+                .ignoresSafeArea()
+
+            Button {
+                isMapFullScreen = false
+            } label: {
+                Image(systemName: "arrow.down.right.and.arrow.up.left")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(RouteCastColors.steeringGray)
+                    .padding(12)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .strokeBorder(Color.white.opacity(0.8), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
+            }
+            .padding(.top, 16)
+            .padding(.trailing, 16)
+        }
     }
 
     // MARK: - Helpers
