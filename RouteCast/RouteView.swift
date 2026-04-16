@@ -35,12 +35,12 @@ struct RouteView: View {
 
     private var formSection: some View {
         VStack(spacing: 12) {
-            TextField("Point A", text: $pointA)
+            TextField("Origin City", text: $pointA)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(true)
 
-            TextField("Point B", text: $pointB)
+            TextField("Destination City", text: $pointB)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(true)
@@ -61,7 +61,9 @@ struct RouteView: View {
             Button {
                 Task {
                     await routeStore.loadRoute(from: pointA.trimmingCharacters(in: .whitespacesAndNewlines),
-                                               to: pointB.trimmingCharacters(in: .whitespacesAndNewlines))
+                                               to: pointB.trimmingCharacters(in: .whitespacesAndNewlines),
+                                               departure: departure,
+                                               transportMode: selectedMode)
                 }
             } label: {
                 Text("Get Route Weather")
@@ -98,13 +100,13 @@ struct RouteView: View {
                 }
 
                 if routeStore.cityForecasts.isEmpty, routeStore.errorMessage == nil {
-                    Text("Enter two places and tap Get Route Weather.")
+                    Text("Enter two cities and tap Get Route Weather.")
                         .foregroundStyle(RouteCastColors.steeringGray.opacity(0.8))
                         .padding(.top, 6)
                 }
 
-                ForEach(routeStore.cityForecasts) { city in
-                    cityCard(city)
+                ForEach(Array(routeStore.cityForecasts.enumerated()), id: \.element.id) { index, city in
+                    cityCard(city, index: index)
                 }
 
                 if !routeStore.cityForecasts.isEmpty {
@@ -123,7 +125,7 @@ struct RouteView: View {
         }
     }
 
-    private func cityCard(_ city: CityForecast) -> some View {
+    private func cityCard(_ city: CityForecast, index: Int) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(city.cityName)
@@ -132,6 +134,10 @@ struct RouteView: View {
                 Image(systemName: city.weather.condition.sfSymbol)
                     .foregroundStyle(city.weather.condition.color)
             }
+
+            Text("\(index == 0 ? "Departure" : "Est. arrival"): \(city.arrivalTime.formatted(date: .omitted, time: .shortened))")
+                .font(.caption)
+                .foregroundStyle(RouteCastColors.steeringGray.opacity(0.7))
 
             Text(city.weather.description)
                 .font(.subheadline)
