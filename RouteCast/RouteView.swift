@@ -8,6 +8,72 @@ import SwiftUI
 import Foundation
 import MapKit
 
+// MARK: - Skeleton Card
+
+private struct SkeletonCityCard: View {
+    @State private var opacity: Double = 0.45
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(RouteCastColors.steeringGray.opacity(0.15))
+                        .frame(width: 130, height: 20)
+                    Capsule()
+                        .fill(RouteCastColors.goldenAmber.opacity(0.25))
+                        .frame(width: 110, height: 22)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 6) {
+                    Circle()
+                        .fill(RouteCastColors.steeringGray.opacity(0.12))
+                        .frame(width: 32, height: 32)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(RouteCastColors.steeringGray.opacity(0.15))
+                        .frame(width: 48, height: 22)
+                }
+            }
+
+            RoundedRectangle(cornerRadius: 4)
+                .fill(RouteCastColors.steeringGray.opacity(0.1))
+                .frame(height: 14)
+
+            HStack(spacing: 0) {
+                ForEach(0..<5, id: \.self) { _ in
+                    VStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(RouteCastColors.steeringGray.opacity(0.12))
+                            .frame(width: 28, height: 10)
+                        Circle()
+                            .fill(RouteCastColors.steeringGray.opacity(0.12))
+                            .frame(width: 22, height: 22)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(RouteCastColors.steeringGray.opacity(0.12))
+                            .frame(width: 22, height: 10)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(16)
+        .background(RouteCastColors.boxBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
+        .opacity(opacity)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true)) {
+                opacity = 1.0
+            }
+        }
+    }
+}
+
+// MARK: - RouteView
+
 struct RouteView: View {
     @Environment(RouteStore.self) private var routeStore
 
@@ -17,105 +83,158 @@ struct RouteView: View {
     @State private var selectedMode: TransportMode = .driving
     @State private var mapPosition: MapCameraPosition = .automatic
 
-    var body: some View {
-        VStack(spacing: 12) {
-            formSection
+    private var canSearch: Bool {
+        !pointA.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !pointB.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !routeStore.isLoading
+    }
 
-            if routeStore.isLoading {
-                ProgressView("Loading route weather...")
-                    .padding(.top, 30)
-                Spacer()
-            } else {
-                resultSection
-            }
+    var body: some View {
+        VStack(spacing: 0) {
+            formSection
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
+
+            resultSection
         }
-        .padding()
         .background(RouteCastColors.pageBackground.ignoresSafeArea())
     }
 
-    private var formSection: some View {
-        VStack(spacing: 12) {
-            TextField("Point A", text: $pointA)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.words)
-                .disableAutocorrection(true)
+    // MARK: - Form
 
-            TextField("Point B", text: $pointB)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.words)
-                .disableAutocorrection(true)
+    private var formSection: some View {
+        VStack(spacing: 14) {
+            fieldInput(label: "FROM", placeholder: "City or address", text: $pointA)
+            fieldInput(label: "TO",   placeholder: "City or address", text: $pointB)
 
             HStack(spacing: 10) {
-                DatePicker("Departure", selection: $departure, displayedComponents: .hourAndMinute)
-                    .labelsHidden()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("DEPARTURE")
+                        .font(.caption.weight(.bold))
+                        .tracking(1.2)
+                        .foregroundStyle(RouteCastColors.steeringGray.opacity(0.45))
+                    DatePicker("", selection: $departure, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
 
-                Picker("Mode", selection: $selectedMode) {
-                    ForEach(TransportMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("MODE")
+                        .font(.caption.weight(.bold))
+                        .tracking(1.2)
+                        .foregroundStyle(RouteCastColors.steeringGray.opacity(0.45))
+                    Picker("Mode", selection: $selectedMode) {
+                        ForEach(TransportMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(RouteCastColors.steeringGray)
+                }
+                .padding(12)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    Task {
+                        await routeStore.loadRoute(
+                            from: pointA.trimmingCharacters(in: .whitespacesAndNewlines),
+                            to: pointB.trimmingCharacters(in: .whitespacesAndNewlines),
+                            departure: departure,
+                            transportMode: selectedMode
+                        )
+                    }
+                } label: {
+                    Text("Get Route Weather")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(
+                            canSearch
+                            ? LinearGradient(colors: [RouteCastColors.goldenAmber, RouteCastColors.warmOrange],
+                                             startPoint: .leading, endPoint: .trailing)
+                            : LinearGradient(colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.3)],
+                                             startPoint: .leading, endPoint: .trailing)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: canSearch ? RouteCastColors.goldenAmber.opacity(0.35) : .clear,
+                                radius: 8, x: 0, y: 4)
+                }
+                .disabled(!canSearch)
+
+                if !routeStore.cityForecasts.isEmpty {
+                    Button {
+                        routeStore.clearRoute()
+                    } label: {
+                        Text("Clear")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(RouteCastColors.steeringGray.opacity(0.55))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 15)
+                            .background(RouteCastColors.steeringGray.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
                 }
-                .pickerStyle(.menu)
             }
+        }
+    }
 
-            Button {
-                Task {
-                    await routeStore.loadRoute(from: pointA.trimmingCharacters(in: .whitespacesAndNewlines),
-                                               to: pointB.trimmingCharacters(in: .whitespacesAndNewlines))
-                }
-            } label: {
-                Text("Get Route Weather")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(RouteCastColors.goldenAmber)
-            .disabled(pointA.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                      pointB.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                      routeStore.isLoading)
+    private func fieldInput(label: String, placeholder: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label)
+                .font(.caption.weight(.bold))
+                .tracking(1.5)
+                .foregroundStyle(RouteCastColors.steeringGray.opacity(0.45))
+            TextField(placeholder, text: text)
+                .textInputAutocapitalization(.words)
+                .disableAutocorrection(true)
+                .font(.body.weight(.medium))
+                .foregroundStyle(RouteCastColors.steeringGray)
         }
         .padding(14)
-        .background(RouteCastColors.boxBackground)
+        .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(RouteCastColors.steeringGray.opacity(0.35), lineWidth: 1)
-        )
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 3)
     }
+
+    // MARK: - Results
 
     private var resultSection: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 if let error = routeStore.errorMessage {
                     Text(error)
                         .foregroundStyle(.red)
+                        .font(.subheadline)
+                        .padding(.horizontal, 20)
                         .padding(.top, 6)
                 }
 
-                if !routeStore.cityForecasts.isEmpty {
-                    routeMapCard
-                }
-
-                if routeStore.cityForecasts.isEmpty, routeStore.errorMessage == nil {
-                    Text("Enter two places and tap Get Route Weather.")
-                        .foregroundStyle(RouteCastColors.steeringGray.opacity(0.8))
-                        .padding(.top, 6)
-                }
-
-                ForEach(routeStore.cityForecasts) { city in
-                    cityCard(city)
-                }
-
-                if !routeStore.cityForecasts.isEmpty {
-                    Button("Clear Route") {
-                        routeStore.clearRoute()
+                if routeStore.isLoading {
+                    skeletonSection
+                } else if routeStore.cityForecasts.isEmpty, routeStore.errorMessage == nil {
+                    emptyState
+                } else {
+                    if !routeStore.cityForecasts.isEmpty {
+                        routeMapCard
+                            .padding(.horizontal, 20)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(RouteCastColors.goldenAmber)
-                    .padding(.top, 4)
+                    ForEach(Array(routeStore.cityForecasts.enumerated()), id: \.element.id) { index, city in
+                        cityCard(city, index: index)
+                            .padding(.horizontal, 20)
+                    }
                 }
             }
+            .padding(.bottom, 110)
         }
         .onAppear { updateMapPosition() }
         .onChange(of: routeStore.cityForecasts.map(\.id)) { _ in
@@ -123,95 +242,158 @@ struct RouteView: View {
         }
     }
 
-    private func cityCard(_ city: CityForecast) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(city.cityName)
-                    .font(.headline)
+    // MARK: - Skeleton
+
+    private var skeletonSection: some View {
+        VStack(spacing: 16) {
+            ForEach(0..<3, id: \.self) { _ in
+                SkeletonCityCard()
+                    .padding(.horizontal, 20)
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    // MARK: - Empty State
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "map")
+                .font(.system(size: 56))
+                .foregroundStyle(RouteCastColors.goldenAmber.opacity(0.5))
+            Text("Enter a start and destination\nto see weather along your route.")
+                .font(.subheadline)
+                .foregroundStyle(RouteCastColors.steeringGray.opacity(0.5))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+    }
+
+    // MARK: - City Card
+
+    private func cityCard(_ city: CityForecast, index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(city.cityName)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(RouteCastColors.steeringGray)
+                    Text("\(index == 0 ? "Departure" : "Est. arrival") \(city.arrivalTime.formatted(date: .omitted, time: .shortened))")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(index == 0 ? RouteCastColors.steeringGray : RouteCastColors.goldenAmber)
+                        .clipShape(Capsule())
+                }
                 Spacer()
-                Image(systemName: city.weather.condition.sfSymbol)
-                    .foregroundStyle(city.weather.condition.color)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Image(systemName: city.weather.condition.sfSymbol)
+                        .font(.system(size: 32))
+                        .foregroundStyle(city.weather.condition.color)
+                    Text(city.weather.temperature)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(RouteCastColors.steeringGray)
+                }
             }
 
             Text(city.weather.description)
                 .font(.subheadline)
-                .foregroundStyle(RouteCastColors.steeringGray.opacity(0.9))
+                .foregroundStyle(RouteCastColors.steeringGray.opacity(0.65))
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(city.hourly.prefix(5))) { hour in
-                        VStack(spacing: 4) {
-                            Text(hour.time)
-                                .font(.caption)
-                            Image(systemName: hour.condition.sfSymbol)
-                                .foregroundStyle(hour.condition.color)
-                            Text("\(Int(hour.temperature))°")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .padding(8)
-                        .background(Color.white.opacity(0.75))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+            // Fixed 5-column hourly row — no nested scroll
+            HStack(spacing: 0) {
+                ForEach(Array(city.hourly.prefix(5))) { item in
+                    VStack(spacing: 6) {
+                        Text(item.time)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(RouteCastColors.steeringGray.opacity(0.55))
+                        Image(systemName: item.condition.sfSymbol)
+                            .font(.system(size: 22))
+                            .foregroundStyle(item.condition.color)
+                        Text("\(Int(item.temperature))°")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(RouteCastColors.steeringGray)
                     }
+                    .frame(maxWidth: .infinity)
                 }
             }
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .padding(12)
+        .padding(16)
         .background(RouteCastColors.boxBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(RouteCastColors.goldenAmber.opacity(0.35), lineWidth: 1)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 4)
     }
 
+    // MARK: - Map Card
+
     private var routeMapCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Weather Along Route")
-                .font(.headline)
-                .foregroundStyle(RouteCastColors.steeringGray)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Text("ROUTE MAP")
+                    .font(.caption.weight(.semibold))
+                    .tracking(1.5)
+                    .foregroundStyle(RouteCastColors.steeringGray.opacity(0.4))
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundStyle(RouteCastColors.steeringGray.opacity(0.1))
+            }
 
             Map(position: $mapPosition) {
-                let coordinates = routeStore.cityForecasts.map(\.coordinate)
+                let forecasts = routeStore.cityForecasts
+                let coordinates = forecasts.map(\.coordinate)
 
                 if coordinates.count > 1 {
                     MapPolyline(coordinates: coordinates)
-                        .stroke(RouteCastColors.steeringGray, lineWidth: 4)
+                        .stroke(RouteCastColors.goldenAmber, lineWidth: 3.5)
                 }
 
-                ForEach(Array(routeStore.cityForecasts.enumerated()), id: \.element.id) { index, city in
+                ForEach(Array(forecasts.enumerated()), id: \.element.id) { index, city in
+                    let isEndpoint = index == 0 || index == forecasts.count - 1
                     Annotation(city.cityName, coordinate: city.coordinate) {
-                        VStack(spacing: 4) {
-                            Text(city.weather.temperature)
-                                .font(.caption.weight(.bold))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(.thinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        VStack(spacing: 3) {
+                            HStack(spacing: 4) {
+                                Image(systemName: city.weather.condition.sfSymbol)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(city.weather.condition.color)
+                                Text(city.weather.temperature)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(RouteCastColors.steeringGray)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(RouteCastColors.goldenAmber, lineWidth: 1.5)
+                            )
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
 
-                            Image(systemName: index == 0 || index == routeStore.cityForecasts.count - 1 ? "mappin.circle.fill" : "mappin.circle")
-                                .font(.title3)
-                                .foregroundStyle(index == 0 || index == routeStore.cityForecasts.count - 1
+                            Image(systemName: isEndpoint ? "mappin.circle.fill" : "circle.fill")
+                                .font(isEndpoint ? .title3 : .caption)
+                                .foregroundStyle(isEndpoint
                                                  ? RouteCastColors.goldenAmber
-                                                 : RouteCastColors.steeringGray)
+                                                 : RouteCastColors.steeringGray.opacity(0.4))
                         }
                     }
                 }
             }
-            .frame(height: 380)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(RouteCastColors.steeringGray.opacity(0.5), lineWidth: 1.2)
-            )
+            .frame(height: 360)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
         }
-        .padding(10)
+        .padding(16)
         .background(RouteCastColors.boxBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(RouteCastColors.goldenAmber.opacity(0.35), lineWidth: 1)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 4)
     }
+
+    // MARK: - Helpers
 
     private func updateMapPosition() {
         let coordinates = routeStore.cityForecasts.map(\.coordinate)
@@ -229,7 +411,7 @@ struct RouteView: View {
     }
 }
 
-private enum TransportMode: String, CaseIterable, Identifiable {
+enum TransportMode: String, CaseIterable, Identifiable {
     case driving
     case walking
     case cycling

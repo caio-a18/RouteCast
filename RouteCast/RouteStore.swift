@@ -18,6 +18,7 @@ struct CityForecast: Identifiable {
     let coordinate  : CLLocationCoordinate2D
     let weather     : CurrentWeather
     let hourly      : [HourlyWeather]
+    let arrivalTime : Date
 }
 
 // MARK: - RouteStore
@@ -57,7 +58,7 @@ class RouteStore {
 
     // Public API
 
-    func loadRoute(from origin: String, to destination: String) async {
+    func loadRoute(from origin: String, to destination: String, departure: Date = Date(), transportMode: TransportMode = .driving) async {
         isLoading    = true
         errorMessage = nil
         routeLabel   = "\(origin) → \(destination)"
@@ -65,18 +66,31 @@ class RouteStore {
 
         do {
             let stops = try await citiesAlongRoute(from: origin, to: destination)
-            
+
+            // Compute cumulative arrival time at each stop
+            let locations = stops.map { CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude) }
+            let navData   = NavigationService.getNavigationData(locations: locations, transportMode: transportMode)
+            var arrivalTimes: [Date] = [departure]
+            for nav in navData {
+                let prev    = arrivalTimes[nav.location1Index]
+                arrivalTimes.append(prev.addingTimeInterval(nav.time * 3600))
+            }
+
             var forecasts: [CityForecast] = []
-            for stop in stops {
-                let weather = await WeatherDataProvider.fetchCurrentAsync(lat: stop.coordinate.latitude,
-                                                                          lon: stop.coordinate.longitude)
-                let hourly = await WeatherDataProvider.fetchHourlyAsync(lat: stop.coordinate.latitude,
-                                                                        lon: stop.coordinate.longitude)
+            for (index, stop) in stops.enumerated() {
+                let arrivalTime = arrivalTimes[index]
+                let weather = await WeatherDataProvider.fetchCurrentAt(lat: stop.coordinate.latitude,
+                                                                       lon: stop.coordinate.longitude,
+                                                                       targetDate: arrivalTime)
+                let hourly  = await WeatherDataProvider.fetchHourlyFrom(lat: stop.coordinate.latitude,
+                                                                        lon: stop.coordinate.longitude,
+                                                                        targetDate: arrivalTime)
                 forecasts.append(CityForecast(
-                    cityName   : stop.name,
-                    coordinate : stop.coordinate,
-                    weather    : weather,
-                    hourly     : hourly
+                    cityName    : stop.name,
+                    coordinate  : stop.coordinate,
+                    weather     : weather,
+                    hourly      : hourly,
+                    arrivalTime : arrivalTime
                 ))
             }
             
