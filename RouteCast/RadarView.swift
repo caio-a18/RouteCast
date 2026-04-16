@@ -106,7 +106,7 @@ struct RadarView: UIViewRepresentable {
             zoom = coords.count > 3 ? 4.5 : 6
         }
         
-        let json: [String: Any] = ["agenda":["id":"weather","center":[lon,lat],"location":[lon,lat],"zoom":5.466763946339284,"layer":"bref_qcd"],"animating":false,"base":"standard","artcc":false,"county":false,"cwa":false,"rfc":false,"state":false,"menu":true,"shortFusedOnly":false,"opacity":["alerts":0.8,"local":0.6,"localStations":0.8,"national":0.6]]
+        let json: [String: Any] = ["agenda":["id":"weather","center":[lon,lat],"location":[lon,lat],"zoom":5.466763946339284,"layer":"bref_qcd"],"animating":false,"base":"standard","artcc":false,"county":false,"cwa":false,"rfc":false,"state":false,"menu":true,"shortFusedOnly":false,"opacity":["alerts":0.0,"local":0.8,"localStations":0.8,"national":0.8]]
         
         
         let data = try! JSONSerialization.data(withJSONObject: json)
